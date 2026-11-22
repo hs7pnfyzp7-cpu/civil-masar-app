@@ -1,0 +1,14 @@
+{
+  "name": "مسار الهندسة",
+  "short_name": "مسار",
+  "description": "منصة ودليل لفنيي ومهندسي الهندسة المدنية في السعودية",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f8f4",
+  "theme_color": "#12372a",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
