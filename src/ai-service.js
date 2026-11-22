@@ -2,11 +2,11 @@ export async function fetchLiveData(type, specialtyAr, levelAr) {
   let prompt = "";
   
   if (type === 'jobs') {
-    prompt = `أنت خبير توظيف سعودي. ابحث في الويب عن 4 وظائف شاغرة حالياً في السعودية لتخصص "${specialtyAr}" بمستوى "${levelAr}". 
+    prompt = `أنت خبير توظيف سعودي. ابحث في الويب عن 3 وظائف شاغرة حالياً في السعودية لتخصص "${specialtyAr}" بمستوى "${levelAr}". 
     أرجع النتيجة كـ JSON فقط (بدون أي كلام إضافي أو علامات ماركداون)، بهذا الشكل بالضبط:
     [{"title":"اسم الوظيفة", "company":"الشركة", "city":"المدينة", "link":"رابط التقديم المباشر"}]`;
   } else {
-    prompt = `أنت خبير تدريب سعودي. ابحث عن 4 دورات تدريبية معتمدة وموثوقة في السعودية لتخصص "${specialtyAr}" بمستوى "${levelAr}". 
+    prompt = `أنت خبير تدريب سعودي. ابحث عن 3 دورات تدريبية معتمدة وموثوقة في السعودية لتخصص "${specialtyAr}" بمستوى "${levelAr}". 
     أرجع النتيجة كـ JSON فقط (بدون أي كلام إضافي أو علامات ماركداون)، بهذا الشكل بالضبط:
     [{"title":"اسم الدورة", "provider":"الجهة المانحة", "city":"المدينة", "link":"رابط التسجيل"}]`;
   }
@@ -22,7 +22,9 @@ export async function fetchLiveData(type, specialtyAr, levelAr) {
     if (start !== -1 && end !== -1) {
       text = text.substring(start, end + 1);
     }
-    return JSON.parse(text);
+    
+    const parsedData = JSON.parse(text);
+    return parsedData;
   } catch (error) {
     console.error("AI Search Error:", error);
     return null; // في حال حدوث خطأ، نرجع null عشان الموقع يستخدم البيانات المحلية
