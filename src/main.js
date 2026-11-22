@@ -1,380 +1,430 @@
 import './styles.css'
-import { analyzeJobText } from './ai-service.js'
+import { fetchLiveData } from './ai-service.js'
 import {
   SPECIALTIES, LEVELS, MODES, JOB_TYPES, EXPERIENCE, COURSE_STATUS,
   MARKET, COURSES, JOBS,
 } from './radar/catalog.js'
 
-// --- دوال مساعدة ---
-const getRiyadhToday = () => {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
-  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]))
-  return `${map.year}-${map.month}-${map.day}`
-}
-
-const getCourseStatusKey = (course, todayStr) => {
-  const remainingSeats = Math.max(0, (course.seats || 0) - (course.seatsTaken || 0))
-  if (todayStr < course.opensAt) return 'upcoming'
-  if (todayStr > course.closesAt || remainingSeats === 0) return 'closed'
-  return 'open'
-}
-
-const todayRiyadh = getRiyadhToday()
 const app = document.querySelector('#app')
 
-// --- تصميم الموقع (CSS مدمج) ---
+// --- تصميم الموقع (عصري واحترافي - مسارك للهندسة) ---
 app.innerHTML = `
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap');
+
     :root {
-      --primary-green: #2e7d32;
-      --light-green: #e8f5e9;
-      --bg-color: #f8fbf9;
-      --text-dark: #333;
-      --text-light: #666;
+      --primary: #10b981;
+      --primary-dark: #047857;
+      --bg-body: #f8fafc;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --card-bg: #ffffff;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
     }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-color);
-      margin: 0;
-      padding: 0;
-      color: var(--text-dark);
+      font-family: 'Cairo', sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
+
+    .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
     /* الهيدر */
     .header {
-      background: #fff;
-      padding: 15px 0;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      margin-bottom: 30px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid #e2e8f0;
     }
     .nav {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      height: 70px;
     }
     .logo {
-      color: var(--primary-green);
-      font-size: 22px;
-      font-weight: bold;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary-dark);
       text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .nav-links a {
       text-decoration: none;
-      color: var(--text-dark);
-      margin-right: 15px;
-      font-weight: 500;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-right: 24px;
+      transition: color 0.3s;
     }
-    /* بطاقة التخصص */
-    .profile-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 30px;
+    .nav-links a:hover { color: var(--primary); }
+
+    /* القسم الرئيسي (Hero) */
+    .hero {
       text-align: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-      border: 1px solid #e0eae0;
-      margin-bottom: 40px;
+      padding: 60px 20px 40px;
     }
-    .profile-card h2 {
-      color: var(--primary-green);
-      margin-top: 0;
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 16px;
     }
-    .profile-selects {
+    .hero p {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 40px;
+    }
+
+    /* بطاقة البحث الذكي */
+    .search-card {
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 30px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(16, 185, 129, 0.1);
+      max-width: 700px;
+      margin: 0 auto 60px;
+      position: relative;
+      overflow: hidden;
+    }
+    .search-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), #34d399);
+    }
+    .form-group {
       display: flex;
-      flex-direction: column;
-      gap: 15px;
-      margin: 20px 0;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .form-group > div {
+      flex: 1;
+      min-width: 250px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      text-align: right;
     }
     select {
       width: 100%;
-      padding: 14px;
-      border-radius: 10px;
-      border: 2px solid #c8e6c9;
-      background: #fafafa;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 2px solid #e2e8f0;
+      background: #f8fafc;
+      font-family: 'Cairo', sans-serif;
       font-size: 16px;
+      color: var(--text-main);
       outline: none;
-      transition: 0.3s;
-      box-sizing: border-box; /* يمنع الخروج عن الإطار */
-    }
-    select:focus {
-      border-color: var(--primary-green);
-      background: #fff;
-    }
-    .btn-primary {
-      background: var(--primary-green);
-      color: #fff;
-      border: none;
-      padding: 14px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
+      transition: all 0.3s;
       cursor: pointer;
-      width: 100%;
-      transition: 0.3s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: left 16px center;
+      background-size: 20px;
     }
-    .btn-primary:hover { background: #1b5e20; }
+    select:focus { border-color: var(--primary); background-color: #fff; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
     
-    /* الأقسام */
-    .section-title {
-      color: var(--primary-green);
-      border-right: 5px solid var(--primary-green);
-      padding-right: 12px;
-      margin-bottom: 20px;
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: white;
+      font-family: 'Cairo', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
     }
-    .grid-cards {
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* الأقسام */
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .section-header h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .section-header::before {
+      content: '';
+      display: block;
+      width: 8px;
+      height: 24px;
+      background: var(--primary);
+      border-radius: 4px;
+      margin-left: 12px;
+    }
+
+    /* الكروت */
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
     }
     .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid #e2e8f0;
+      transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      border: 1px solid #eee;
-      transition: 0.3s;
     }
     .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary);
     }
-    .card h3 { margin: 0 0 10px 0; font-size: 18px; color: #222; }
-    .card p { margin: 0 0 8px 0; color: var(--text-light); font-size: 14px; }
+    .card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+    .card .company { font-size: 14px; color: var(--primary-dark); font-weight: 600; margin-bottom: 4px; }
+    .card .location { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-bottom: 16px; }
+    
     .card-btn {
-      margin-top: 15px;
-      padding: 10px;
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      background: #ecfdf5;
+      color: var(--primary-dark);
       border: none;
-      border-radius: 8px;
-      background: var(--light-green);
-      color: var(--primary-green);
-      font-weight: bold;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 700;
       cursor: pointer;
-      transition: 0.3s;
+      transition: all 0.3s;
     }
-    .card-btn:hover { background: #c8e6c9; }
-    
-    /* قسم الدورات بخلفية مختلفة */
-    .courses-section {
-      background: #f0f4f0;
-      padding: 40px 0;
-      margin: 40px 0;
-    }
+    .card-btn:hover { background: var(--primary); color: white; }
 
-    /* النافذة المنبثقة */
+    /* النافذة المنبثقة (Modal) */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      box-sizing: border-box;
-      backdrop-filter: blur(2px);
+      display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;
+      opacity: 0; transition: opacity 0.3s ease;
     }
+    .modal-overlay.active { display: flex; opacity: 1; }
     .modal-content {
-      background: #fff;
-      border-radius: 16px;
-      max-width: 500px;
-      width: 100%;
-      padding: 30px;
-      position: relative;
-      max-height: 90vh;
-      overflow-y: auto;
+      background: #fff; border-radius: 20px; max-width: 500px; width: 100%;
+      padding: 32px; position: relative; box-shadow: var(--shadow-lg);
+      transform: scale(0.95); transition: transform 0.3s ease;
     }
-    .close-btn {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      background: #f0f0f0;
-      border: none;
-      width: 35px; height: 35px;
-      border-radius: 50%;
-      font-size: 20px;
-      cursor: pointer;
-      color: #666;
-    }
+    .modal-overlay.active .modal-content { transform: scale(1); }
     
-    /* الذكاء الاصطناعي */
-    .ai-section {
-      background: #fff;
-      border-radius: 16px;
-      padding: 30px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-      border: 1px solid #e0eae0;
-      margin-top: 40px;
+    .close-btn {
+      position: absolute; top: 16px; left: 16px; background: #f1f5f9; border: none;
+      width: 36px; height: 36px; border-radius: 50%; font-size: 20px; cursor: pointer;
+      color: var(--text-muted); display: flex; justify-content: center; align-items: center;
+      transition: all 0.3s;
     }
-    textarea {
-      width: 100%;
-      padding: 15px;
-      border-radius: 10px;
-      border: 2px solid #c8e6c9;
-      font-family: inherit;
-      resize: vertical;
-      box-sizing: border-box;
+    .close-btn:hover { background: #e2e8f0; color: var(--text-main); }
+    
+    .modal-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin-bottom: 16px; padding-left: 40px; }
+    .modal-desc { font-size: 15px; color: var(--text-muted); margin-bottom: 24px; white-space: pre-wrap; line-height: 1.8; background: #f8fafc; padding: 16px; border-radius: 12px; }
+
+    /* حالة التحميل */
+    .loading {
+      text-align: center; padding: 40px; grid-column: 1 / -1;
+      color: var(--primary-dark); font-weight: 600; font-size: 18px;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
     }
-    .ai-result {
-      display: none;
-      margin-top: 20px;
-      padding: 20px;
-      background: #e3f2fd;
-      border-radius: 10px;
-      border-right: 4px solid #1e3a8a;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      color: #333;
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid #ecfdf5; border-top-color: var(--primary);
+      border-radius: 50%; animation: spin 1s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* الفوتر */
+    .footer { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 40px; }
   </style>
 
   <header class="header">
     <div class="container nav">
-      <a href="#" class="logo" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">مسار الهندسة</a>
-      <div class="nav-links">
+      <a href="#" class="logo" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M9 20V8l6-4 6 4v12"/><path d="M9 12h6"/></svg>
+        مسارك للهندسة
+      </a>
+      <div class="nav-links" style="display:none; md:display:flex;">
         <a href="#jobs">الوظائف</a>
         <a href="#courses">الدورات</a>
-        <a href="#ai">المساعد الذكي</a>
       </div>
     </div>
   </header>
 
-  <main class="container">
-    <!-- بطاقة التخصص -->
-    <section class="profile-card">
-      <h2>أهلاً بك! عرّفنا عن نفسك</h2>
-      <p style="color: var(--text-light); margin-bottom: 20px;">اختر تخصصك ومستواك لنعرض لك أفضل الفرص والدورات.</p>
-      
-      <div class="profile-selects">
-        <select id="userSpecialty">
-          <option value="all">كل التخصصات الهندسية</option>
-          ${SPECIALTIES.map(sp => `<option value="${sp.id}">${sp.label}</option>`).join('')}
-        </select>
-        <select id="userLevel">
-          <option value="all">الكل (فني / مهندس)</option>
-          <option value="tech">فني</option>
-          <option value="eng">مهندس</option>
-        </select>
-      </div>
-      <button id="applyProfileBtn" class="btn-primary">عرض النتائج المناسبة</button>
-    </section>
-
-    <!-- الوظائف -->
-    <section id="jobs">
-      <h2 class="section-title">الوظائف المتاحة</h2>
-      <div id="jobList" class="grid-cards"></div>
-    </section>
-
-    <!-- الدورات -->
-    <section id="courses" class="courses-section">
+  <main>
+    <section class="hero">
       <div class="container">
-        <h2 class="section-title">الدورات المعتمدة</h2>
-        <div id="courseList" class="grid-cards"></div>
+        <h1>بوابتك الذكية لسوق العمل الهندسي</h1>
+        <p>لا تضيع وقتك في البحث العشوائي. اختر تخصصك، ودع الذكاء الاصطناعي يرشدك لأحدث الوظائف والدورات المعتمدة في السعودية.</p>
       </div>
     </section>
 
-    <!-- الذكاء الاصطناعي -->
-    <section id="ai" class="ai-section">
-      <h2 class="section-title">مساعدك الذكي</h2>
-      <p style="color: var(--text-light); margin-bottom: 15px;">اكتب مجالك أو الوصف الوظيفي، وسيقوم المساعد بالتحليل وتوجيهك للشهادات الموثوقة في السعودية.</p>
-      <textarea id="aiInput" rows="3" placeholder="مثال: أنا فني مدني وأبحث عن دورات OSHA..."></textarea>
-      <button id="askAiBtn" class="btn-primary" style="margin-top: 15px; background: #1e3a8a;">اسأل المساعد الذكي</button>
-      <div id="aiResultBox" class="ai-result"></div>
-    </section>
+    <div class="container">
+      <!-- بطاقة البحث الذكي (بدون ترحيب) -->
+      <section class="search-card">
+        <div class="form-group">
+          <div>
+            <label>التخصص الهندسي</label>
+            <select id="userSpecialty">
+              <option value="all">كل التخصصات</option>
+              ${SPECIALTIES.map(sp => `<option value="${sp.id}">${sp.label}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label>المستوى</label>
+            <select id="userLevel">
+              <option value="all">الكل (فني / مهندس)</option>
+              <option value="tech">فني</option>
+              <option value="eng">مهندس</option>
+            </select>
+          </div>
+        </div>
+        <button id="applyProfileBtn" class="btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          ابحث لي بالذكاء الاصطناعي
+        </button>
+      </section>
+
+      <!-- الوظائف -->
+      <section id="jobs">
+        <div class="section-header"><h2>الوظائف المتاحة</h2></div>
+        <div id="jobList" class="grid"></div>
+      </section>
+
+      <!-- الدورات -->
+      <section id="courses">
+        <div class="section-header"><h2>الدورات المعتمدة</h2></div>
+        <div id="courseList" class="grid"></div>
+      </section>
+    </div>
   </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© ${new Date().getFullYear()} مسارك للهندسة. جميع الحقوق محفوظة.</p>
+    </div>
+  </footer>
 
   <!-- النافذة المنبثقة -->
   <div id="modalOverlay" class="modal-overlay">
     <div class="modal-content">
       <button id="closeModal" class="close-btn">&times;</button>
-      <h3 id="modalTitle" style="color: var(--primary-green); margin-top: 0; margin-bottom: 15px;"></h3>
-      <p id="modalContent" style="color: var(--text-dark); line-height: 1.6; white-space: pre-wrap; margin-bottom: 25px;"></p>
-      <a id="applyLink" href="#" target="_blank" class="btn-primary" style="display: block; text-align: center; text-decoration: none;">جاري التحميل...</a>
+      <h3 id="modalTitle" class="modal-title"></h3>
+      <div id="modalContent" class="modal-desc"></div>
+      <a id="applyLink" href="#" target="_blank" class="btn-primary">جاري التحميل...</a>
     </div>
   </div>
 `
 
 // --- الوظائف البرمجية ---
 const modalOverlay = document.querySelector('#modalOverlay');
-document.querySelector('#closeModal').addEventListener('click', () => modalOverlay.style.display = 'none');
+document.querySelector('#closeModal').addEventListener('click', () => {
+  modalOverlay.classList.remove('active');
+});
 
-const showModal = (title, content, link, btnText) => {
+window.showModal = (title, content, link) => {
   document.querySelector('#modalTitle').textContent = title;
   document.querySelector('#modalContent').textContent = content;
-  const applyBtn = document.querySelector('#applyLink');
-  applyBtn.href = link;
-  applyBtn.textContent = btnText;
-  modalOverlay.style.display = 'flex';
+  document.querySelector('#applyLink').href = link;
+  modalOverlay.classList.add('active');
 };
 
-const renderData = (specialty = 'all') => {
-  let fJobs = specialty === 'all' ? JOBS : JOBS.filter(j => j.specialty === specialty);
-  let fCourses = specialty === 'all' ? COURSES : COURSES.filter(c => c.specialty === specialty);
+const renderCards = (containerId, items) => {
+  const container = document.querySelector(containerId);
+  if (!items || items.length === 0) {
+    container.innerHTML = '<p style="text-align:center; color:#64748b; grid-column:1/-1;">لا توجد نتائج حالياً.</p>';
+    return;
+  }
 
-  // عرض الوظائف
-  document.querySelector('#jobList').innerHTML = fJobs.length ? fJobs.map((job, i) => `
+  container.innerHTML = items.map((item, i) => `
     <div class="card">
       <div>
-        <h3>${job.title}</h3>
-        <p>${job.company}</p>
-        <p>⌖ ${job.city}</p>
+        <h3>${item.title}</h3>
+        <p class="company">${item.company || item.provider || 'جهة غير محددة'}</p>
+        <p class="location">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${item.city || 'السعودية'}
+        </p>
       </div>
-      <button class="card-btn job-btn" data-idx="${i}">التفاصيل والتقديم</button>
+      <button class="card-btn" 
+        onclick="showModal('${item.title.replace(/'/g, "\\'")}', '${(item.company || item.provider || '').replace(/'/g, "\\'")}\\nالمدينة: ${(item.city || 'السعودية').replace(/'/g, "\\'")}', '${item.link || '#'}')">
+        التفاصيل والتقديم
+      </button>
     </div>
-  `).join('') : '<p>لا توجد وظائف حالياً.</p>';
-
-  // عرض الدورات
-  document.querySelector('#courseList').innerHTML = fCourses.length ? fCourses.map((course, i) => `
-    <div class="card">
-      <div>
-        <h3>${course.title}</h3>
-        <p>${course.provider}</p>
-        <p>⌖ ${course.city} • ${course.hours} ساعة</p>
-      </div>
-      <button class="card-btn course-btn" data-idx="${i}" style="background: #e3f2fd; color: #1e3a8a;">التفاصيل والتسجيل</button>
-    </div>
-  `).join('') : '<p>لا توجد دورات حالياً.</p>';
-
-  // أحداث الوظائف
-  document.querySelectorAll('.job-btn').forEach(btn => btn.addEventListener('click', (e) => {
-    const job = fJobs[e.target.dataset.idx];
-    const details = `الشركة: ${job.company}\nالمدينة: ${job.city}\nالخبرة: ${job.expMin}-${job.expMax} سنوات\n\n${job.summary || 'لا يوجد وصف.'}`;
-    const url = (job.applyLink && job.applyLink.startsWith('http')) ? job.applyLink : 'https://www.jadarat.sa';
-    showModal(job.title, details, url, 'قدم الآن عبر جدارات');
-  }));
-
-  // أحداث الدورات
-  document.querySelectorAll('.course-btn').forEach(btn => btn.addEventListener('click', (e) => {
-    const course = fCourses[e.target.dataset.idx];
-    const details = `الجهة: ${course.provider}\nالاعتماد: ${course.accreditation}\nالسعر: ${course.price === 0 ? 'مجاني' : course.price + ' ر.س'}`;
-    const url = (course.applyLink && course.applyLink.startsWith('http')) ? course.applyLink : `https://www.google.com/search?q=دورة+${encodeURIComponent(course.title)}+السعودية`;
-    showModal(course.title, details, url, 'ابحث عن الدورة وسجل');
-  }));
+  `).join('');
 };
 
-document.querySelector('#applyProfileBtn').addEventListener('click', () => {
-  const spec = document.querySelector('#userSpecialty').value;
-  renderData(spec);
-  document.querySelector('#jobs').scrollIntoView({ behavior: 'smooth' });
+// --- الفرز الذكي ---
+document.querySelector('#applyProfileBtn').addEventListener('click', async () => {
+  const specId = document.querySelector('#userSpecialty').value;
+  const levelId = document.querySelector('#userLevel').value;
+  
+  const jobList = document.querySelector('#jobList');
+  const courseList = document.querySelector('#courseList');
+  
+  if (specId === 'all') {
+    renderCards('#jobList', JOBS);
+    renderCards('#courseList', COURSES);
+    return;
+  }
+
+  const specialtyAr = SPECIALTIES.find(s => s.id === specId)?.label || '';
+  const levelAr = levelId === 'tech' ? 'فني' : levelId === 'eng' ? 'مهندس' : '';
+
+  // حالة التحميل
+  const loadingHTML = `<div class="loading"><div class="spinner"></div>جاري البحث في السوق...</div>`;
+  jobList.innerHTML = loadingHTML;
+  courseList.innerHTML = loadingHTML;
+
+  const liveJobs = await fetchLiveData('jobs', specialtyAr, levelAr);
+  const liveCourses = await fetchLiveData('courses', specialtyAr, levelAr);
+
+  if (liveJobs && liveJobs.length > 0) {
+    renderCards('#jobList', liveJobs);
+  } else {
+    renderCards('#jobList', JOBS.filter(j => j.specialty === specId));
+  }
+
+  if (liveCourses && liveCourses.length > 0) {
+    renderCards('#courseList', liveCourses);
+  } else {
+    renderCards('#courseList', COURSES.filter(c => c.specialty === specId));
+  }
 });
 
-// الذكاء الاصطناعي
-document.querySelector('#askAiBtn').addEventListener('click', async () => {
-  const text = document.querySelector('#aiInput').value;
-  const resultBox = document.querySelector('#aiResultBox');
-  if(!text) return alert("اكتب شيئاً أولاً");
-  
-  resultBox.style.display = 'block';
-  resultBox.textContent = "جاري التحليل... ⏳";
-  
-  const response = await analyzeJobText(text);
-  resultBox.textContent = response;
-});
-
-// تشغيل افتراضي
-renderData('all');
+// تحميل افتراضي
+renderCards('#jobList', JOBS);
+renderCards('#courseList', COURSES);
