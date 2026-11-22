@@ -1,4 +1,3 @@
-import { analyzeJobText } from './ai-service.js';
 import './styles.css'
 import {
   SPECIALTIES,
@@ -54,24 +53,11 @@ app.innerHTML = `
       </a>
       <button class="menu-button" type="button" aria-label="فتح القائمة" aria-expanded="false"><span></span><span></span><span></span></button>
       <div class="nav-links">
-        <a class="active" href="#jobs">الفرص</a><a href="#courses">الدورات</a><a href="#market">سوق العمل</a><a href="#resume">السيرة الذاتية</a>
+        <a class="active" href="#jobs">الفرص</a><a href="#courses">الدورات</a><a href="#market">سوق العمل</a>
       </div>
-      <a class="nav-action" href="#resume">جهّز سيرتك</a>
     </nav>
   </header>
   <main id="home">
-    <section class="hero">
-      <div class="hero-pattern" aria-hidden="true"></div>
-      <div class="container hero-grid">
-        <div class="hero-copy">
-          <span class="eyebrow">دليل مهني شامل لجميع التخصصات الهندسية</span>
-          <h1>ابنِ مسارك في <span>جميع التخصصات الهندسية</span></h1>
-          <p>وظائف وفرص تدريب ودورات معتمدة ومؤشرات سوق العمل في السعودية للمدني والميكانيكي والكهربائي والمعماري والصناعي والسلامة والجودة.</p>
-          <div class="hero-actions"><a class="primary-button" href="#jobs">استكشف الفرص</a><a class="secondary-button" href="#resume">أنشئ سيرتك الذاتية</a></div>
-        </div>
-      </div>
-    </section>
-
     <section class="section" id="profile-builder" style="background: #e8f5e9; padding: 30px 0; text-align: center;">
       <div class="container">
         <h2 style="color: #1b5e20; margin-bottom: 10px;">أهلاً بك! عرّفنا عن نفسك لنعرض لك ما يناسبك</h2>
@@ -102,28 +88,9 @@ app.innerHTML = `
         <div class="cards" id="catalogCards"></div>
       </div>
     </section>
-
-    <section class="resume-section" id="resume">
-      <div class="container resume-grid">
-        <div class="resume-copy">
-          <span class="section-kicker">سيرة جاهزة للعمل</span>
-          <h2>قدّم ملفاتك المهنية بصورة احترافية</h2>
-          <p>الصق وصف وظيفة أو مهاراتك، ودع الذكاء الاصطناعي يحللها لك ويقترح لك دورات.</p>
-          <button class="primary-button" type="button" id="startResume">ابدأ بناء سيرتي بالذكاء الاصطناعي</button>
-        </div>
-        <div class="resume-preview" id="aiResultBox" aria-label="معاينة سيرة ذاتية">
-          <div class="resume-profile">
-            <div class="avatar">ف هـ</div>
-            <div><strong>فني هندسة مدنية</strong><span>إشراف ميداني، حصر كميات، جودة وسلامة مشاريع</span></div>
-          </div>
-          <p style="color: #666; text-align: center; margin-top: 20px;">نتيجة التحليل ستظهر هنا بعد استخدام الذكاء الاصطناعي.</p>
-        </div>
-      </div>
-    </section>
   </main>
 `
 
-// --- نافذة التفاصيل الأنيقة (Modal) ---
 const detailModal = document.createElement('div');
 detailModal.id = 'custom-modal';
 detailModal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; padding:20px;';
@@ -143,7 +110,6 @@ const openModal = (title, content) => {
 };
 document.querySelector('#closeModalBtn').addEventListener('click', () => detailModal.style.display = 'none');
 
-// --- عرض الوظائف ---
 const renderJobsAndCourses = (specialtyFilter = 'all') => {
   const { filteredJobs, filteredCourses } = specialtyFilter === 'all' 
     ? { filteredJobs: JOBS, filteredCourses: COURSES } 
@@ -158,7 +124,6 @@ const renderJobsAndCourses = (specialtyFilter = 'all') => {
     })),
     ...filteredCourses.map((course) => {
       const statusKey = getCourseStatusKey(course, todayRiyadh)
-      const remainingSeats = Math.max(0, course.seats - course.seatsTaken)
       return {
         kind: 'course', filterType: 'دورة', badge: 'دورة معتمدة', specialty: course.specialty, title: course.title,
         company: `${course.provider} (${course.accreditation})`, location: `${course.city} • ${MODES[course.mode] || course.mode}`,
@@ -190,7 +155,6 @@ const renderJobsAndCourses = (specialtyFilter = 'all') => {
   });
 };
 
-// --- فلترة الزائر ---
 document.querySelector('#applyProfileBtn')?.addEventListener('click', () => {
   const selectedSpecialty = document.querySelector('#userSpecialty').value;
   if (!selectedSpecialty) return alert("الرجاء اختيار التخصص أولاً.");
@@ -208,28 +172,5 @@ document.querySelectorAll('#specialtyFilters .filter').forEach((button) => butto
   button.classList.add('active')
   renderJobsAndCourses(button.dataset.specialty || 'all')
 }))
-
-// --- الذكاء الاصطناعي للسيرة الذاتية ---
-document.querySelector('#startResume')?.addEventListener('click', async () => {
-  const userInput = prompt("الصق هنا وصف الوظيفة أو المهارات اللي تبغى تحللها:");
-  if (!userInput) return; 
-
-  const resultBox = document.querySelector('#aiResultBox');
-  resultBox.innerHTML = "<h3 style='color: #1e3a8a; text-align: center; padding: 20px;'>جاري تحليل النص بالذكاء الاصطناعي... ⏳</h3>";
-  resultBox.classList.add('highlight');
-
-  try {
-    const aiResponse = await analyzeJobText(userInput);
-    resultBox.innerHTML = `
-      <div style="padding: 20px; background: #fff; border-radius: 12px;">
-        <h3 style="color: #2e7d32; margin-bottom: 10px;">✅ نتيجة التحليل الذكي:</h3>
-        <p style="white-space: pre-wrap; line-height: 1.6; color:#333;">${aiResponse}</p>
-        <button onclick="location.reload()" style="margin-top:15px; padding:10px 20px; background:#1e3a8a; color:#fff; border:none; border-radius:5px; cursor:pointer;">إعادة</button>
-      </div>`;
-  } catch (error) {
-    alert("حدث خطأ في الاتصال: " + error.message);
-    resultBox.innerHTML = "<p style='text-align:center;'>فشل الاتصال، حاول مرة أخرى.</p>";
-  }
-});
 
 renderJobsAndCourses('all');
