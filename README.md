@@ -1,12 +1,16 @@
+// api/radar.js  (Vercel Serverless Function)
+// المتغير المطلوب في Vercel: ANTHROPIC_API_KEY  (Settings → Environment Variables)
+
+// الجهات الموثوقة للدورات فقط. عدّلها حسب رغبتك.
 export const TRUSTED = [
-  'tvtc.gov.sa',
-  'saudieng.sa',
-  'pmi.org',
-  'osha.gov',
-  'learn.iccsafe.org',
+  'tvtc.gov.sa',          // المؤسسة العامة للتدريب التقني والمهني
+  'saudieng.sa',          // الهيئة السعودية للمهندسين (يشمل training.saudieng.sa)
+  'pmi.org',              // PMI
+  'osha.gov',             // OSHA
+  'learn.iccsafe.org',    // ICC
   'iccsafe.org',
-  'nebosh.org',
-  'iosh.com'
+  'nebosh.org',           // NEBOSH
+  'iosh.com'              // IOSH
 ];
 
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
@@ -47,6 +51,7 @@ export default async function handler(req, res) {
     const data = await r.json();
     if (!r.ok) return res.status(502).json({ error: data?.error?.message || 'upstream error' });
 
+    // الروابط التي ظهرت فعلاً في نتائج البحث (حماية من الروابط الوهمية)
     const seen = new Set();
     for (const b of data.content || []) {
       if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
@@ -60,8 +65,10 @@ export default async function handler(req, res) {
     items = items.filter((it) => it.link && seen.has(it.link.split('#')[0]));
     if (type === 'courses') items = items.filter((it) => isTrusted(it.link));
 
+    // تخزين مؤقت 30 دقيقة لتقليل التكلفة
     res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600');
-    return res.status(200).json({ items, fetchedAt: new Date().toISOString(
-    return res.status(500).json({ error: 
-  
-
+    return res.status(200).json({ items, fetchedAt: new Date().toISOString() });
+  } catch (err) {
+    return res.status(500).json({ error: 'تعذر جلب النتائج الآن' });
+  }
+}
