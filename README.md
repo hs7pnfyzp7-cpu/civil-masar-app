@@ -61,8 +61,7 @@ export default async function handler(req, res) {
     if (type === 'courses') items = items.filter((it) => isTrusted(it.link));
 
     res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600');
-    return res.status(200).json({ items, fetchedAt: new Date().toISOString() });
-  } catch (err) {
-    return res.status(500).json({ error: 'تعذر جلب النتائج الآن' });
-  }
-}
+    return res.status(200).json({ items, fetchedAt: new Date().toISOString(
+    return res.status(500).json({ error: 
+  
+
