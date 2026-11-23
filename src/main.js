@@ -51,30 +51,30 @@ async function fetchRadar(type, specialty, level) {
 
 /* ================= الهيكل ================= */
 document.querySelector('#app').innerHTML = `
-<header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">رادار الذكاء الاصطناعي</a></nav></div></header>
+<header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">الرادار الذكي</a></nav></div></header>
 <div class="hero"><div class="w">
-  <span class="tag"><i class="dot"></i>وظائف ودورات موثّقة للمهندس السعودي</span>
-  <h1>اختر مسارك، <span>ودعنا نرتّب لك الباقي</span></h1>
-  <p>حدّد تخصصك ومستواك فتظهر لك الوظائف الأعلى طلباً والدورات المعتمدة المناسبة لك فوراً.</p>
-  <div class="panel">
-    <div class="row"><label>التخصص</label><span id="sp"></span></div>
-    <div class="row"><label>المستوى</label><span id="lv"></span></div>
-    <div class="row"><label>الدورات</label><span id="tr"></span></div>
+  <span class="tag"><i class="dot"></i>منصة المهندس السعودي 2026 · توظيف وتأهيل</span>
+  <h1>مسارك للهندسة: <span>فرصك ودوراتك في مكان واحد</span></h1>
+  <p>بوابتك للوظائف الهندسية من مختلف المصادر، والبرامج التدريبية المعتمدة من الجهات الموثوقة فقط. حدّد تخصصك ومستواك لتتغير الصفحة وفق مسارك.</p>
+  <div class="panel" id="pick">
+    <div class="row"><label>01 · التخصص</label><span id="sp"></span></div>
+    <div class="row"><label>01 · المستوى</label><span id="lv"></span></div>
+    <div class="row"><label>الاعتماد</label><span id="tr"></span></div>
   </div>
-  <div class="sum"><div><b id="nj">0</b><span>وظيفة مطابقة</span></div><div><b id="nc">0</b><span>دورة</span></div><div><b id="nd">0%</b><span>متوسط الطلب</span></div></div>
+  <div class="sum"><div><b id="nj">0</b><span>وظيفة مطابقة</span></div><div><b id="nc">0</b><span>دورة معتمدة</span></div><div><b id="nd">0%</b><span>متوسط الطلب</span></div></div>
 </div></div>
 <div class="w">
-  <section><h2>الوظائف حسب المسار</h2><p class="sub" id="lead"></p><div class="grid" id="jobs"></div></section>
-  <section><h2>الدورات</h2><p class="sub" id="csub"></p><div class="grid" id="courses"></div></section>
-  <section><h2>اتجاهات سوق العمل</h2><p class="sub">الطلب حسب التخصص وأبرز المهارات وجهات العمل</p><div class="grid" id="market"></div></section>
+  <section><h2>02 · الوظائف الأعلى طلباً</h2><p class="sub" id="lead"></p><div class="grid" id="jobs"></div></section>
+  <section><h2>03 · التأهيل ودورات موثوقة</h2><p class="sub" id="csub"></p><div class="grid" id="courses"></div></section>
+  <section><h2>04 · نبض سوق العمل</h2><p class="sub">مستوى الطلب حسب التخصص وأبرز المهارات وجهات العمل</p><div class="grid" id="market"></div></section>
   <section id="radar"><div class="radar">
-    <h3>📡 رادار الذكاء الاصطناعي</h3>
-    <p>يبحث في الويب عن إعلانات وظائف حقيقية من أي جهة (جدارات، لينكدإن، مواقع الشركات...)، وعن دورات من الجهات الموثوقة فقط. كل نتيجة تحمل رابط الإعلان الأصلي.</p>
+    <h3>📡 الرادار الذكي (يرصد · يتحقق · يصفّي · يعرض)</h3>
+    <p>يرصد الإعلانات من جدارات ولينكدإن ومواقع الشركات، يتحقق من صحة الروابط، يصفّي الدورات لحصر الجهات الموثوقة فقط، ويعرض النتائج حسب تخصصك ومستواك.</p>
     <div class="acts"><button class="btn" id="rj">🔎 ارصد الوظائف الآن</button><button class="btn o" id="rc">🎓 ابحث عن دورات موثوقة</button></div>
     <div id="rout" class="grid"></div>
   </div></section>
 </div>
-<footer>© 2026 مسارك للهندسة</footer>`;
+<footer>© 2026 مسارك للهندسة — وظائف · دورات · تأهيل</footer>`;
 
 /* ================= الحالة والعرض ================= */
 let sp = 'all', lv = 'all', trusted = true;
