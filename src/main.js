@@ -1,5 +1,4 @@
 import './styles.css';
-import { fetchLiveData, renderRadar } from './radar-client.js';
 
 /* ================= البيانات ================= */
 // accreditor: الجهة المعتمدة. null = غير معتمدة رسمياً (تُخفى عند تفعيل "المعتمدة فقط")
@@ -43,6 +42,13 @@ const safeUrl = (u) => (/^https:\/\//i.test(u) ? esc(u) : '#');
 const tags = (a) => `<div class="sk">${a.map((x) => `<span>${esc(x)}</span>`).join('')}</div>`;
 const $ = (id) => document.getElementById(id);
 
+async function fetchRadar(type, specialty, level) {
+  const q = new URLSearchParams({ type, specialty, level });
+  const res = await fetch('/api/radar?' + q);
+  if (!res.ok) throw new Error('radar');
+  return (await res.json()).items || [];
+}
+
 /* ================= الهيكل ================= */
 document.querySelector('#app').innerHTML = `
 <header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">رادار الذكاء الاصطناعي</a></nav></div></header>
@@ -50,7 +56,7 @@ document.querySelector('#app').innerHTML = `
   <span class="tag"><i class="dot"></i>وظائف ودورات موثّقة للمهندس السعودي</span>
   <h1>اختر مسارك، <span>ودعنا نرتّب لك الباقي</span></h1>
   <p>حدّد تخصصك ومستواك فتظهر لك الوظائف الأعلى طلباً والدورات المعتمدة المناسبة لك فوراً.</p>
-  <div class="panel" id="pick">
+  <div class="panel">
     <div class="row"><label>التخصص</label><span id="sp"></span></div>
     <div class="row"><label>المستوى</label><span id="lv"></span></div>
     <div class="row"><label>الدورات</label><span id="tr"></span></div>
@@ -128,9 +134,15 @@ async function runRadar(type, btn) {
   out.style.display = 'block';
   out.innerHTML = '<div class="msg"><span class="spin"></span>جاري البحث في الويب، قد يستغرق ذلك نصف دقيقة...</div>';
   try {
-    const items = await fetchLiveData(type, sp, lv);
+    const items = await fetchRadar(type, sp, lv);
     out.style.display = '';
-    renderRadar(items || [], type, out);
+    out.innerHTML = items.length ? items.map((i) => `
+      <div class="card"><div class="top"><span class="bd">${type === 'jobs' ? esc(i.source || 'إعلان') : '✓ ' + esc(i.accreditor || i.provider)}</span></div>
+      <h3>${esc(i.title)}</h3>
+      <p>${type === 'jobs' ? esc([i.company, i.city].filter(Boolean).join(' · ')) : esc(i.provider)}</p>
+      ${i.posted ? `<p>تاريخ الإعلان: ${esc(i.posted)}</p>` : ''}${i.price ? `<div class="pr">${esc(i.price)}</div>` : ''}
+      <a class="btn" target="_blank" rel="noopener" href="${safeUrl(i.link)}">فتح المصدر الأصلي</a></div>`).join('')
+      : '<div class="msg">لم نجد نتائج موثّقة حالياً. جرّب تخصصاً أو مستوى آخر.</div>';
   } catch {
     out.style.display = 'block';
     out.innerHTML = '<div class="msg">تعذّر الاتصال بالرادار. تأكد من نشر المشروع على Vercel وضبط ANTHROPIC_API_KEY (محلياً استخدم vercel dev).</div>';
