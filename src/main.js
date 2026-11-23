@@ -36,122 +36,304 @@ const market = [
   { t: 'مهندس تعدين', c: 'هندسة التعدين', d: 77, s: ['التعدين', 'السلامة', 'إدارة العمليات'], w: 'شركات التعدين والطاقة' }
 ];
 
-/* ================= أدوات ================= */
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const safeUrl = (u) => (/^https:\/\//i.test(u) ? esc(u) : '#');
-const tags = (a) => `<div class="sk">${a.map((x) => `<span>${esc(x)}</span>`).join('')}</div>`;
+/* ================= الأدوات ================= */
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+}[char]));
+
+const safeUrl = (url) => /^https:\/\//i.test(url) ? esc(url) : '#';
+const tags = (items) => `<div class="sk">${items.map((item) => `<span>${esc(item)}</span>`).join('')}</div>`;
 const $ = (id) => document.getElementById(id);
 
 async function fetchRadar(type, specialty, level) {
-  const q = new URLSearchParams({ type, specialty, level });
-  const res = await fetch('/api/radar?' + q);
-  if (!res.ok) throw new Error('radar');
-  return (await res.json()).items || [];
+  const params = new URLSearchParams({ type, specialty, level });
+  const response = await fetch(`/api/radar?${params}`);
+
+  if (!response.ok) {
+    throw new Error(`Radar request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
 }
 
-https://claude.ai/artifact/5Ts8nCfY3UyoZEjx4LrdXo/* ================= الهيكل ================= */
+/* ================= الهيكل ================= */
 document.querySelector('#app').innerHTML = `
-<header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">رادار الذكاء الاصطناعي</a></nav></div></header>
-<div class="hero"><div class="w">
-  <span class="tag"><i class="dot"></i>وظائف ودورات موثّقة للمهندس السعودي</span>
-  <h1>اختر مسارك، <span>ودعنا نرتّب لك الباقي</span></h1>
-  <p>حدّد تخصصك ومستواك فتظهر لك الوظائف الأعلى طلباً والدورات المعتمدة المناسبة لك فوراً.</p>
-  <div class="panel">
-    <div class="row"><label>التخصص</label><span id="sp"></span></div>
-    <div class="row"><label>المستوى</label><span id="lv"></span></div>
-    <div class="row"><label>الدورات</label><span id="tr"></span></div>
+  <header>
+    <div class="w">
+      <nav>
+        <a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a>
+        <a class="btn" href="#radar">رادار الذكاء الاصطناعي</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="w">
+      <span class="tag"><i class="dot"></i>وظائف ودورات موثّقة للمهندس السعودي</span>
+      <h1>اختر مسارك، <span>ودعنا نرتّب لك الباقي</span></h1>
+      <p>حدّد تخصصك ومستواك فتظهر لك الوظائف الأعلى طلباً والدورات المعتمدة المناسبة لك فوراً.</p>
+
+      <div class="panel">
+        <div class="row"><label>التخصص</label><span id="sp"></span></div>
+        <div class="row"><label>المستوى</label><span id="lv"></span></div>
+        <div class="row"><label>الدورات</label><span id="tr"></span></div>
+      </div>
+
+      <div class="sum">
+        <div><b id="nj">0</b><span>وظيفة مطابقة</span></div>
+        <div><b id="nc">0</b><span>دورة</span></div>
+        <div><b id="nd">0%</b><span>متوسط الطلب</span></div>
+      </div>
+    </div>
   </div>
-  <div class="sum"><div><b id="nj">0</b><span>وظيفة مطابقة</span></div><div><b id="nc">0</b><span>دورة</span></div><div><b id="nd">0%</b><span>متوسط الطلب</span></div></div>
-</div></div>
-<div class="w">
-  <section><h2>الوظائف حسب المسار</h2><p class="sub" id="lead"></p><div class="grid" id="jobs"></div></section>
-  <section><h2>الدورات</h2><p class="sub" id="csub"></p><div class="grid" id="courses"></div></section>
-  <section><h2>اتجاهات سوق العمل</h2><p class="sub">الطلب حسب التخصص وأبرز المهارات وجهات العمل</p><div class="grid" id="market"></div></section>
-  <section id="radar"><div class="radar">
-    <h3>📡 رادار الذكاء الاصطناعي</h3>
-    <p>يبحث في الويب عن إعلانات وظائف حقيقية من أي جهة (جدارات، لينكدإن، مواقع الشركات...)، وعن دورات من الجهات الموثوقة فقط. كل نتيجة تحمل رابط الإعلان الأصلي.</p>
-    <div class="acts"><button class="btn" id="rj">🔎 ارصد الوظائف الآن</button><button class="btn o" id="rc">🎓 ابحث عن دورات موثوقة</button></div>
-    <div id="rout" class="grid"></div>
-  </div></section>
-</div>
-<footer>© 2026 مسارك للهندسة</footer>`;
+
+  <div class="w">
+    <section>
+      <h2>الوظائف حسب المسار</h2>
+      <p class="sub" id="lead"></p>
+      <div class="grid" id="jobs"></div>
+    </section>
+
+    <section>
+      <h2>الدورات</h2>
+      <p class="sub" id="csub"></p>
+      <div class="grid" id="courses"></div>
+    </section>
+
+    <section>
+      <h2>اتجاهات سوق العمل</h2>
+      <p class="sub">الطلب حسب التخصص وأبرز المهارات وجهات العمل</p>
+      <div class="grid" id="market"></div>
+    </section>
+
+    <section id="radar">
+      <div class="radar">
+        <h3>رادار الذكاء الاصطناعي</h3>
+        <p>يبحث في الويب عن إعلانات وظائف حقيقية وعن دورات من جهات موثوقة فقط.</p>
+        <div class="acts">
+          <button class="btn" id="rj" type="button">ارصد الوظائف الآن</button>
+          <button class="btn o" id="rc" type="button">ابحث عن دورات موثوقة</button>
+        </div>
+        <div id="rout" class="grid"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>© 2026 مسارك للهندسة</footer>
+`;
 
 /* ================= الحالة والعرض ================= */
-let sp = 'all', lv = 'all', trusted = true;
+let sp = 'all';
+let lv = 'all';
+let trusted = true;
 
 const chips = (el, arr, cur, key) => {
-  $(el).innerHTML = arr.map(([v, l]) => `<button class="chip${v === cur ? ' on' : ''}" data-k="${key}" data-v="${esc(v)}">${esc(l)}</button>`).join('');
+  $(el).innerHTML = arr.map(([value, label]) => `
+    <button
+      class="chip${value === cur ? ' on' : ''}"
+      type="button"
+      data-k="${key}"
+      data-v="${esc(value)}"
+    >${esc(label)}</button>
+  `).join('');
 };
 
 function render() {
-  chips('sp', [['all', 'الكل'], ...Object.keys(tracks).map((k) => [k, k.replace('الهندسة ', '')])], sp, 'sp');
-  chips('lv', [['all', 'الكل'], ['فني', 'فني'], ['مهندس', 'مهندس']], lv, 'lv');
-  chips('tr', [['1', 'المعتمدة فقط'], ['0', 'الكل']], trusted ? '1' : '0', 'tr');
+  chips(
+    'sp',
+    [['all', 'الكل'], ...Object.keys(tracks).map((item) => [item, item.replace('الهندسة ', '')])],
+    sp,
+    'sp'
+  );
 
-  let roles = [], lead = 'كل الوظائف المتاحة';
-  for (const s of Object.keys(tracks)) for (const l of ['فني', 'مهندس']) {
-    if ((sp === 'all' || sp === s) && (lv === 'all' || lv === l)) {
-      roles.push(...tracks[s][l].roles.map((r) => ({ ...r, s0: s, l0: l })));
-      if (sp !== 'all' && lv !== 'all') lead = tracks[s][l].lead;
+  chips(
+    'lv',
+    [['all', 'الكل'], ['فني', 'فني'], ['مهندس', 'مهندس']],
+    lv,
+    'lv'
+  );
+
+  chips(
+    'tr',
+    [['1', 'المعتمدة فقط'], ['0', 'الكل']],
+    trusted ? '1' : '0',
+    'tr'
+  );
+
+  const roles = [];
+
+  for (const specialty of Object.keys(tracks)) {
+    for (const level of ['فني', 'مهندس']) {
+      if (
+        (sp === 'all' || sp === specialty) &&
+        (lv === 'all' || lv === level)
+      ) {
+        roles.push(...tracks[specialty][level].roles.map((role) => ({
+          ...role,
+          s0: specialty,
+          l0: level
+        })));
+      }
     }
   }
+
+  let lead = 'كل الوظائف المتاحة';
+
+  if (sp !== 'all' && lv !== 'all') {
+    lead = tracks[sp][lv].lead;
+  }
+
   $('lead').textContent = lead;
-  $('jobs').innerHTML = roles.length ? roles.map((r) => `
-    <div class="card"><div class="top"><span class="bd">${esc(r.s0.replace('الهندسة ', ''))} · ${esc(r.l0)}</span></div>
-    <h3>${esc(r.t)}</h3>
-    <div><div class="dm"><span>مستوى الطلب</span><b>${r.d}%</b></div><div class="bar"><i style="width:${r.d}%"></i></div></div>
-    ${tags(r.s)}<a class="btn" target="_blank" rel="noopener" href="https://www.jadarat.sa">قدّم الآن عبر جدارات</a></div>`).join('') : '<div class="empty">لا توجد وظائف مطابقة.</div>';
 
-  const list = courses.filter((c) => (sp === 'all' || c.paths.includes(sp)) && (lv === 'all' || c.levels.includes(lv)) && (!trusted || c.accreditor));
-  $('csub').textContent = trusted ? 'الدورات المعتمدة من جهات موثوقة فقط' : 'تشمل دورات غير معتمدة رسمياً، تحقق من الجهة قبل التسجيل';
-  $('courses').innerHTML = list.length ? list.map((c) => `
-    <div class="card"><div class="top"><span class="bd">${esc(c.cat)}</span>${c.accreditor ? `<span class="vf">✓ معتمدة: ${esc(c.accreditor)}</span>` : '<span class="vf" style="color:var(--mt)">غير موثّقة بعد</span>'}</div>
-    <h3>${esc(c.title)}</h3><p>${esc(c.provider)}</p>${tags(c.skills)}<div class="pr">${esc(c.price)}</div>
-    <a class="btn o" target="_blank" rel="noopener" href="${safeUrl(c.url)}">التفاصيل والتسجيل</a></div>`).join('') : '<div class="empty">لا توجد دورات معتمدة مطابقة. جرّب الرادار أدناه للبحث عن المزيد.</div>';
+  $('jobs').innerHTML = roles.length
+    ? roles.map((role) => `
+      <div class="card">
+        <div class="top">
+          <span class="bd">${esc(role.s0.replace('الهندسة ', ''))} · ${esc(role.l0)}</span>
+        </div>
+        <h3>${esc(role.t)}</h3>
+        <div>
+          <div class="dm"><span>مستوى الطلب</span><b>${role.d}%</b></div>
+          <div class="bar"><i style="width:${role.d}%"></i></div>
+        </div>
+        ${tags(role.s)}
+        <a class="btn" target="_blank" rel="noopener" href="https://www.jadarat.sa">قدّم الآن عبر جدارات</a>
+      </div>
+    `).join('')
+    : '<div class="empty">لا توجد وظائف مطابقة.</div>';
 
-  $('market').innerHTML = market.filter((m) => sp === 'all' || m.c === sp).map((m) => `
-    <div class="card"><div class="top"><span class="bd">${esc(m.c)}</span><b style="color:var(--ac)">${m.d}%</b></div>
-    <h3>${esc(m.t)}</h3><div class="bar"><i style="width:${m.d}%"></i></div>${tags(m.s)}<p>${esc(m.w)}</p></div>`).join('') || '<div class="empty">لا توجد بيانات سوق لهذا التخصص بعد.</div>';
+  const courseList = courses.filter((course) =>
+    (sp === 'all' || course.paths.includes(sp)) &&
+    (lv === 'all' || course.levels.includes(lv)) &&
+    (!trusted || course.accreditor)
+  );
+
+  $('csub').textContent = trusted
+    ? 'الدورات المعتمدة من جهات موثوقة فقط'
+    : 'تشمل دورات غير معتمدة رسمياً؛ تحقق من الجهة قبل التسجيل';
+
+  $('courses').innerHTML = courseList.length
+    ? courseList.map((course) => `
+      <div class="card">
+        <div class="top">
+          <span class="bd">${esc(course.cat)}</span>
+          ${course.accreditor
+            ? `<span class="vf">✓ معتمدة: ${esc(course.accreditor)}</span>`
+            : '<span class="vf">غير موثّقة بعد</span>'}
+        </div>
+        <h3>${esc(course.title)}</h3>
+        <p>${esc(course.provider)}</p>
+        ${tags(course.skills)}
+        <div class="pr">${esc(course.price)}</div>
+        <a class="btn o" target="_blank" rel="noopener" href="${safeUrl(course.url)}">
+          التفاصيل والتسجيل
+        </a>
+      </div>
+    `).join('')
+    : '<div class="empty">لا توجد دورات معتمدة مطابقة. جرّب الرادار أدناه للبحث عن المزيد.</div>';
+
+  $('market').innerHTML = market
+    .filter((item) => sp === 'all' || item.c === sp)
+    .map((item) => `
+      <div class="card">
+        <div class="top">
+          <span class="bd">${esc(item.c)}</span>
+          <b style="color:var(--ac)">${item.d}%</b>
+        </div>
+        <h3>${esc(item.t)}</h3>
+        <div class="bar"><i style="width:${item.d}%"></i></div>
+        ${tags(item.s)}
+        <p>${esc(item.w)}</p>
+      </div>
+    `).join('') || '<div class="empty">لا توجد بيانات سوق لهذا التخصص بعد.</div>';
 
   $('nj').textContent = roles.length;
-  $('nc').textContent = list.length;
-  $('nd').textContent = (roles.length ? Math.round(roles.reduce((a, r) => a + r.d, 0) / roles.length) : 0) + '%';
+  $('nc').textContent = courseList.length;
+  $('nd').textContent = roles.length
+    ? `${Math.round(roles.reduce((sum, role) => sum + role.d, 0) / roles.length)}%`
+    : '0%';
 }
 
-document.addEventListener('click', (e) => {
-  const b = e.target.closest('.chip');
-  if (!b) return;
-  const { k, v } = b.dataset;
-  if (k === 'sp') sp = v; else if (k === 'lv') lv = v; else trusted = v === '1';
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('.chip');
+
+  if (!button) return;
+
+  const { k, v } = button.dataset;
+
+  if (k === 'sp') sp = v;
+  else if (k === 'lv') lv = v;
+  else if (k === 'tr') trusted = v === '1';
+
   render();
 });
 
 /* ================= الرادار ================= */
-async function runRadar(type, btn) {
+async function runRadar(type, button) {
   const out = $('rout');
-  const label = btn.textContent;
-  btn.disabled = true;
+  const label = button.textContent;
+
+  button.disabled = true;
   out.style.display = 'block';
-  out.innerHTML = '<div class="msg"><span class="spin"></span>جاري البحث في الويب، قد يستغرق ذلك نصف دقيقة...</div>';
+  out.innerHTML = '<div class="msg"><span class="spin"></span>جاري البحث...</div>';
+
   try {
     const items = await fetchRadar(type, sp, lv);
+
     out.style.display = '';
-    out.innerHTML = items.length ? items.map((i) => `
-      <div class="card"><div class="top"><span class="bd">${type === 'jobs' ? esc(i.source || 'إعلان') : '✓ ' + esc(i.accreditor || i.provider)}</span></div>
-      <h3>${esc(i.title)}</h3>
-      <p>${type === 'jobs' ? esc([i.company, i.city].filter(Boolean).join(' · ')) : esc(i.provider)}</p>
-      ${i.posted ? `<p>تاريخ الإعلان: ${esc(i.posted)}</p>` : ''}${i.price ? `<div class="pr">${esc(i.price)}</div>` : ''}
-      <a class="btn" target="_blank" rel="noopener" href="${safeUrl(i.link)}">فتح المصدر الأصلي</a></div>`).join('')
-      : '<div class="msg">لم نجد نتائج موثّقة حالياً. جرّب تخصصاً أو مستوى آخر.</div>';
+
+    out.innerHTML = items.length
+      ? items.map((item) => `
+        <div class="card">
+          <div class="top">
+            <span class="bd">
+              ${type === 'jobs'
+                ? esc(item.source || 'إعلان')
+                : `✓ ${esc(item.accreditor || item.provider || 'جهة موثوقة')}`}
+            </span>
+          </div>
+          <h3>${esc(item.title)}</h3>
+          <p>
+            ${type === 'jobs'
+              ? esc([item.company, item.city].filter(Boolean).join(' · '))
+              : esc(item.provider || '')}
+          </p>
+          ${item.posted ? `<p>تاريخ الإعلان: ${esc(item.posted)}</p>` : ''}
+          ${item.price ? `<div class="pr">${esc(item.price)}</div>` : ''}
+          <a class="btn" target="_blank" rel="noopener" href="${safeUrl(item.link)}">
+            فتح المصدر الأصلي
+          </a>
+        </div>
+      `).join('')
+      : '<div class="msg">لم نجد نتائج حالياً. جرّب تخصصاً أو مستوى آخر.</div>';
   } catch {
     out.style.display = 'block';
-    out.innerHTML = '<div class="msg">تعذّر الاتصال بالرادار. تأكد من نشر المشروع على Vercel وضبط ANTHROPIC_API_KEY (محلياً استخدم vercel dev).</div>';
+    out.innerHTML = `
+      <div class="msg">
+        تعذّر الاتصال بالرادار. تأكد من وجود مسار <code>/api/radar</code>
+        وإضافة مفتاح Anthropic كمتغير بيئة من جهة الخادم.
+      </div>
+    `;
   } finally {
-    btn.disabled = false;
-    btn.textContent = label;
+    button.disabled = false;
+    button.textContent = label;
   }
 }
-$('rj').addEventListener('click', (e) => runRadar('jobs', e.currentTarget));
-$('rc').addEventListener('click', (e) => runRadar('courses', e.currentTarget));
+
+const radarJobsButton = $('rj');
+const radarCoursesButton = $('rc');
+
+radarJobsButton?.addEventListener('click', (event) => {
+  runRadar('jobs', event.currentTarget);
+});
+
+radarCoursesButton?.addEventListener('click', (event) => {
+  runRadar('courses', event.currentTarget);
+});
 
 render();
