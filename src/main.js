@@ -1,4 +1,5 @@
 import './styles.css';
+import { fetchLiveData, renderRadar } from './radar-client.js';
 
 /* ================= البيانات ================= */
 // accreditor: الجهة المعتمدة. null = غير معتمدة رسمياً (تُخفى عند تفعيل "المعتمدة فقط")
@@ -42,39 +43,32 @@ const safeUrl = (u) => (/^https:\/\//i.test(u) ? esc(u) : '#');
 const tags = (a) => `<div class="sk">${a.map((x) => `<span>${esc(x)}</span>`).join('')}</div>`;
 const $ = (id) => document.getElementById(id);
 
-async function fetchRadar(type, specialty, level) {
-  const q = new URLSearchParams({ type, specialty, level });
-  const res = await fetch('/api/radar?' + q);
-  if (!res.ok) throw new Error('radar');
-  return (await res.json()).items || [];
-}
-
 /* ================= الهيكل ================= */
 document.querySelector('#app').innerHTML = `
-<header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">الرادار الذكي</a></nav></div></header>
+<header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">رادار الذكاء الاصطناعي</a></nav></div></header>
 <div class="hero"><div class="w">
-  <span class="tag"><i class="dot"></i>منصة المهندس السعودي 2026 · توظيف وتأهيل</span>
-  <h1>مسارك للهندسة: <span>فرصك ودوراتك في مكان واحد</span></h1>
-  <p>بوابتك للوظائف الهندسية من مختلف المصادر، والبرامج التدريبية المعتمدة من الجهات الموثوقة فقط. حدّد تخصصك ومستواك لتتغير الصفحة وفق مسارك.</p>
+  <span class="tag"><i class="dot"></i>وظائف ودورات موثّقة للمهندس السعودي</span>
+  <h1>اختر مسارك، <span>ودعنا نرتّب لك الباقي</span></h1>
+  <p>حدّد تخصصك ومستواك فتظهر لك الوظائف الأعلى طلباً والدورات المعتمدة المناسبة لك فوراً.</p>
   <div class="panel" id="pick">
-    <div class="row"><label>01 · التخصص</label><span id="sp"></span></div>
-    <div class="row"><label>01 · المستوى</label><span id="lv"></span></div>
-    <div class="row"><label>الاعتماد</label><span id="tr"></span></div>
+    <div class="row"><label>التخصص</label><span id="sp"></span></div>
+    <div class="row"><label>المستوى</label><span id="lv"></span></div>
+    <div class="row"><label>الدورات</label><span id="tr"></span></div>
   </div>
-  <div class="sum"><div><b id="nj">0</b><span>وظيفة مطابقة</span></div><div><b id="nc">0</b><span>دورة معتمدة</span></div><div><b id="nd">0%</b><span>متوسط الطلب</span></div></div>
+  <div class="sum"><div><b id="nj">0</b><span>وظيفة مطابقة</span></div><div><b id="nc">0</b><span>دورة</span></div><div><b id="nd">0%</b><span>متوسط الطلب</span></div></div>
 </div></div>
 <div class="w">
-  <section><h2>02 · الوظائف الأعلى طلباً</h2><p class="sub" id="lead"></p><div class="grid" id="jobs"></div></section>
-  <section><h2>03 · التأهيل ودورات موثوقة</h2><p class="sub" id="csub"></p><div class="grid" id="courses"></div></section>
-  <section><h2>04 · نبض سوق العمل</h2><p class="sub">مستوى الطلب حسب التخصص وأبرز المهارات وجهات العمل</p><div class="grid" id="market"></div></section>
+  <section><h2>الوظائف حسب المسار</h2><p class="sub" id="lead"></p><div class="grid" id="jobs"></div></section>
+  <section><h2>الدورات</h2><p class="sub" id="csub"></p><div class="grid" id="courses"></div></section>
+  <section><h2>اتجاهات سوق العمل</h2><p class="sub">الطلب حسب التخصص وأبرز المهارات وجهات العمل</p><div class="grid" id="market"></div></section>
   <section id="radar"><div class="radar">
-    <h3>📡 الرادار الذكي (يرصد · يتحقق · يصفّي · يعرض)</h3>
-    <p>يرصد الإعلانات من جدارات ولينكدإن ومواقع الشركات، يتحقق من صحة الروابط، يصفّي الدورات لحصر الجهات الموثوقة فقط، ويعرض النتائج حسب تخصصك ومستواك.</p>
+    <h3>📡 رادار الذكاء الاصطناعي</h3>
+    <p>يبحث في الويب عن إعلانات وظائف حقيقية من أي جهة (جدارات، لينكدإن، مواقع الشركات...)، وعن دورات من الجهات الموثوقة فقط. كل نتيجة تحمل رابط الإعلان الأصلي.</p>
     <div class="acts"><button class="btn" id="rj">🔎 ارصد الوظائف الآن</button><button class="btn o" id="rc">🎓 ابحث عن دورات موثوقة</button></div>
     <div id="rout" class="grid"></div>
   </div></section>
 </div>
-<footer>© 2026 مسارك للهندسة — وظائف · دورات · تأهيل</footer>`;
+<footer>© 2026 مسارك للهندسة</footer>`;
 
 /* ================= الحالة والعرض ================= */
 let sp = 'all', lv = 'all', trusted = true;
@@ -134,15 +128,9 @@ async function runRadar(type, btn) {
   out.style.display = 'block';
   out.innerHTML = '<div class="msg"><span class="spin"></span>جاري البحث في الويب، قد يستغرق ذلك نصف دقيقة...</div>';
   try {
-    const items = await fetchRadar(type, sp, lv);
+    const items = await fetchLiveData(type, sp, lv);
     out.style.display = '';
-    out.innerHTML = items.length ? items.map((i) => `
-      <div class="card"><div class="top"><span class="bd">${type === 'jobs' ? esc(i.source || 'إعلان') : '✓ ' + esc(i.accreditor || i.provider)}</span></div>
-      <h3>${esc(i.title)}</h3>
-      <p>${type === 'jobs' ? esc([i.company, i.city].filter(Boolean).join(' · ')) : esc(i.provider)}</p>
-      ${i.posted ? `<p>تاريخ الإعلان: ${esc(i.posted)}</p>` : ''}${i.price ? `<div class="pr">${esc(i.price)}</div>` : ''}
-      <a class="btn" target="_blank" rel="noopener" href="${safeUrl(i.link)}">فتح المصدر الأصلي</a></div>`).join('')
-      : '<div class="msg">لم نجد نتائج موثّقة حالياً. جرّب تخصصاً أو مستوى آخر.</div>';
+    renderRadar(items || [], type, out);
   } catch {
     out.style.display = 'block';
     out.innerHTML = '<div class="msg">تعذّر الاتصال بالرادار. تأكد من نشر المشروع على Vercel وضبط ANTHROPIC_API_KEY (محلياً استخدم vercel dev).</div>';
