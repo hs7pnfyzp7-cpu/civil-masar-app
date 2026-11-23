@@ -49,7 +49,7 @@ async function fetchRadar(type, specialty, level) {
   return (await res.json()).items || [];
 }
 
-/* ================= الهيكل ================= */
+https://claude.ai/artifact/4o13cBSK5Zxm3Jbj4v6L4r/* ================= الهيكل ================= */
 document.querySelector('#app').innerHTML = `
 <header><div class="w"><nav><a class="logo" href="#"><i>⌖</i>مسارك للهندسة</a><a class="btn" href="#radar">رادار الذكاء الاصطناعي</a></nav></div></header>
 <div class="hero"><div class="w">
